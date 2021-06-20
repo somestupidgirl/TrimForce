@@ -17,8 +17,8 @@ struct KextPatch {
 
 class PatchSet {
 public:
-	bool init();
-	void deinit();
+    constexpr static const char* moduleName = "patchset";
+	void init();
 	
 private:
 	/**

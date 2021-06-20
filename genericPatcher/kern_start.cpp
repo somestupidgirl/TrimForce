@@ -16,25 +16,27 @@ static const char *bootargOff[] {
 	"-cdrpatchoff"
 };
 
+#ifdef DEVELOPER
 static const char *bootargDebug[] {
 	"-cdrpatchdbg"
 };
+#endif
 
 static const char *bootargBeta[] {
 	"-cdrpatchbeta"
 };
 
 PluginConfiguration ADDPR(config) {
-	xStringify(PRODUCT_NAME),
+    xStringify(PRODUCT_NAME),
     parseModuleVersion(xStringify(MODULE_VERSION)),
-	bootargOff,
-	sizeof(bootargOff)/sizeof(bootargOff[0]),
-	bootargDebug,
-	sizeof(bootargDebug)/sizeof(bootargDebug[0]),
-	bootargBeta,
-	sizeof(bootargBeta)/sizeof(bootargBeta[0]),
-	KernelVersion::Yosemite,
-	KernelVersion::Sierra,
+    LiluAPI::AllowNormal,
+    bootargOff,
+    arrsize(bootargOff),
+    bootargBeta,
+    arrsize(bootargBeta),
+    nullptr, 0,
+    KernelVersion::HighSierra,
+    KernelVersion::Catalina,
 	[]() {
 		patchset.init();
 	}

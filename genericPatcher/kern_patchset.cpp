@@ -20,37 +20,31 @@ static const char* kextPaths[] {
 };
 
 static KernelPatcher::KextInfo kextList[] {
-    { "com.apple.iokit.IOAHCIBlockStorage", &kextPaths[0], 1, true, {}, KernelPatcher::KextInfo::Unloaded },
+    { "com.apple.iokit.IOAHCIBlockStorage", &kextPaths[0], 1 , {true}, {}, KernelPatcher::KextInfo::Unloaded },
 };
 
 template <typename T,unsigned S>
 inline unsigned arraysize(const T (&v)[S]) { return S; }
 static size_t kextListSize = arraysize(kextList);
 
-bool PatchSet::init() {
-	LiluAPI::Error error = lilu.onKextLoad(kextList, kextListSize,
-    [](void* user, KernelPatcher& patcher, size_t index, mach_vm_address_t address, size_t size) {
+void PatchSet::init() {
+    LiluAPI::Error error = lilu.onKextLoad(kextList, kextListSize,
+                                           [](void* user, KernelPatcher& patcher, size_t index, mach_vm_address_t address, size_t size) {
         PatchSet* patchset = static_cast<PatchSet*>(user);
-		patchset->processKext(patcher, index, address, size);
-	}, this);
-	
-	if(error != LiluAPI::Error::NoError) {
-		SYSLOG("coderobe.TrimForce: failed to register onPatcherLoad method %d", error);
-		return false;
-	}
-	
-	return true;
-}
-
-void PatchSet::deinit() {
+        patchset->processKext(patcher, index, address, size);
+    }, this);
+    
+    if (error != LiluAPI::Error::NoError) {
+        SYSLOG(moduleName, "coderobe.TrimForce: failed to register onPatcherLoad method %d", error);
+    }
 }
 
 void PatchSet::processKext(KernelPatcher& patcher, size_t index, mach_vm_address_t address, size_t size){
     if(progressState != ProcessingState::EverythingDone) {
         for(size_t i = 0; i < kextListSize; i++) {
             if(kextList[i].loadIndex == index) {
-                if(!(progressState & ProcessingState::EverythingDone) && !strcmp(kextList[i].id, kextList[0].id)) {
-                    SYSLOG("coderobe.TrimForce: found %s", kextList[i].id);
+                if(!(progressState & ProcessingState::EverythingDone) && !strncmp(kextList[i].id, kextList[0].id, sizeof(0))) {
+                    SYSLOG(moduleName, "coderobe.TrimForce: found %s", kextList[i].id);
                     
                     const uint8_t find[]    = {0x00, 0x41, 0x50, 0x50, 0x4c, 0x45, 0x20, 0x53, 0x53, 0x44, 0x00};
                     const uint8_t replace[] = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00};
@@ -60,7 +54,7 @@ void PatchSet::processKext(KernelPatcher& patcher, size_t index, mach_vm_address
                     };
                     applyPatches(patcher, index, &kext_patch, 1);
                     progressState |= ProcessingState::EverythingDone;
-                    SYSLOG("coderobe.TrimForce: patch applied");
+                    SYSLOG(moduleName, "coderobe.TrimForce: patch applied", 0);
                 }
             }
         }
@@ -73,7 +67,7 @@ void PatchSet::applyPatches(KernelPatcher& patcher, size_t index, const KextPatc
         auto &patch = patches[p];
         if (patch.patch.kext->loadIndex == index) {
             if (patcher.compatibleKernel(patch.minKernel, patch.maxKernel)) {
-                SYSLOG("coderobe.TrimForce: patching %s (%ld/%ld)...", patch.patch.kext->id, p+1, patchNum);
+                SYSLOG(moduleName, "coderobe.TrimForce: patching %s (%ld/%ld)...", patch.patch.kext->id, p+1, patchNum);
                 patcher.applyLookupPatch(&patch.patch);
                 patcher.clearError();
             }
